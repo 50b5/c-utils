@@ -204,7 +204,7 @@ list *string_split_len(const char *input, size_t inputlen, const char *delim, lo
 
         ptrindex += tokenlen + delimlen;
 
-        if (count > 0 && delimcount++ == count){
+        if (count > 0 && ++delimcount == count){
             break;
         }
     }
