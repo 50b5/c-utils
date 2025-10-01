@@ -338,7 +338,7 @@ bool database_execute(sqlite3 *db, const char *sql, const list *params, list **r
 
                     break;
                 case L_TYPE_NULL:
-                    err = sqlite3_bind_null(stmt, index);
+                    err = sqlite3_bind_null(stmt, index + 1);
 
                     break;
                 case L_TYPE_STRING:
