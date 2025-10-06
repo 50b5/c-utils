@@ -447,3 +447,34 @@ bool string_to_int(const char *input, int *output, int base){
 
     return true;
 }
+
+bool string_is_numeric(const char *input){
+    if (!input){
+        log_write(
+            logger,
+            LOG_WARNING,
+            "[%s] string_is_numeric() - input is NULL\n",
+            __FILE__
+        );
+
+        return false;
+    }
+    else if (!strlen(input)){
+        log_write(
+            logger,
+            LOG_WARNING,
+            "[%s] string_is_numeric() - input is empty\n",
+            __FILE__
+        );
+
+        return false;
+    }
+
+    errno = 0;
+
+    char *end = NULL;
+
+    strtol(input, &end, 10);
+
+    return !errno && *end == '\0';
+}

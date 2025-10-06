@@ -23,5 +23,6 @@ char *string_upper(char *);
 bool string_from_time(time_t, bool, const char *, char *, size_t);
 
 bool string_to_int(const char *, int *, int);
+bool string_is_numeric(const char *);
 
 #endif
