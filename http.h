@@ -6,6 +6,8 @@
 
 #include <json-c/json.h>
 
+#define HTTP_DEFAULT_USER_AGENT "User-Agent: c-utils/1.0 (https://github.com/50b5/c-utils)"
+
 typedef struct http_client {
     logctx *log;
 } http_client;

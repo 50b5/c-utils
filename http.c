@@ -101,8 +101,15 @@ static struct curl_slist *create_request_header_list(const list *headers){
         return reqheaders;
     }
 
+    bool uaset = false;
+
     for (size_t index = 0; index < list_get_length(headers); ++index){
         const char *header = list_get_string(headers, index);
+
+        if (strstr(header, "User-Agent")){
+            uaset = true;
+        }
+
         tmp = curl_slist_append(reqheaders, header);
 
         if (!tmp){
@@ -119,6 +126,33 @@ static struct curl_slist *create_request_header_list(const list *headers){
         }
 
         reqheaders = tmp;
+    }
+
+    if (!uaset){
+        tmp = curl_slist_append(reqheaders, HTTP_DEFAULT_USER_AGENT);
+
+        if (!tmp){
+            log_write(
+                logger,
+                LOG_ERROR,
+                "[%s] create_request_header_list() - failed to append default User-Agent header\n",
+                __FILE__
+            );
+
+            curl_slist_free_all(reqheaders);
+
+            return NULL;
+        }
+
+        reqheaders = tmp;
+
+        log_write(
+            logger,
+            LOG_DEBUG,
+            "[%s] create_request_header_list() - setting default User-Agent header (%s)\n",
+            __FILE__,
+            HTTP_DEFAULT_USER_AGENT
+        );
     }
 
     return reqheaders;
