@@ -6,10 +6,10 @@
 
 #include <json-c/json.h>
 
-#define HTTP_DEFAULT_USER_AGENT "User-Agent: c-utils/1.0 (https://github.com/50b5/c-utils)"
+#define HTTP_DEFAULT_USER_AGENT "c-utils/1.0 (https://github.com/50b5/c-utils)"
 
 typedef struct http_client {
-    logctx *log;
+    const logctx *log;
 } http_client;
 
 typedef enum http_method {
@@ -24,9 +24,10 @@ typedef struct http_response {
     long status;
     map *headers;
     json_object *data;
+    char *raw_data;
 } http_response;
 
-http_client *http_init(logctx *);
+http_client *http_init(const logctx *);
 
 http_response *http_request(http_client *, http_method, const char *, const list *);
 

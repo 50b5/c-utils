@@ -12,7 +12,7 @@ struct responsestr {
     size_t size;
 };
 
-static logctx *logger = NULL;
+static const logctx *logger = NULL;
 
 static size_t write_response_headers(char *data, size_t size, size_t nitems, void *out){
     size *= nitems;
@@ -101,15 +101,8 @@ static struct curl_slist *create_request_header_list(const list *headers){
         return reqheaders;
     }
 
-    bool uaset = false;
-
     for (size_t index = 0; index < list_get_length(headers); ++index){
         const char *header = list_get_string(headers, index);
-
-        if (strstr(header, "User-Agent")){
-            uaset = true;
-        }
-
         tmp = curl_slist_append(reqheaders, header);
 
         if (!tmp){
@@ -126,33 +119,6 @@ static struct curl_slist *create_request_header_list(const list *headers){
         }
 
         reqheaders = tmp;
-    }
-
-    if (!uaset){
-        tmp = curl_slist_append(reqheaders, HTTP_DEFAULT_USER_AGENT);
-
-        if (!tmp){
-            log_write(
-                logger,
-                LOG_ERROR,
-                "[%s] create_request_header_list() - failed to append default User-Agent header\n",
-                __FILE__
-            );
-
-            curl_slist_free_all(reqheaders);
-
-            return NULL;
-        }
-
-        reqheaders = tmp;
-
-        log_write(
-            logger,
-            LOG_DEBUG,
-            "[%s] create_request_header_list() - setting default User-Agent header (%s)\n",
-            __FILE__,
-            HTTP_DEFAULT_USER_AGENT
-        );
     }
 
     return reqheaders;
@@ -502,6 +468,16 @@ static void handle_response_status(const http_response *response){
     json_object *obj = NULL;
 
     switch (response->status){
+    case 301:
+        log_write(
+            logger,
+            LOG_DEBUG,
+            "[%s] handle_response_status() - (%d) resource moved permanently\n",
+            __FILE__,
+            response->status
+        );
+
+        break;
     case 304:
         log_write(
             logger,
@@ -598,7 +574,7 @@ static void handle_response_status(const http_response *response){
     }
 }
 
-http_client *http_init(logctx *lhandle){
+http_client *http_init(const logctx *lhandle){
     logger = lhandle;
 
     if (curl_global_init(CURL_GLOBAL_ALL)){
@@ -667,6 +643,9 @@ http_response *http_request(http_client *http, http_method method, const char *p
         return NULL;
     }
 
+    /* debug */
+    curl_easy_setopt(handle, CURLOPT_VERBOSE, 1L);
+
     if (!set_request_method(handle, method)){
         log_write(
             logger,
@@ -685,6 +664,25 @@ http_response *http_request(http_client *http, http_method method, const char *p
             logger,
             LOG_ERROR,
             "[%s] http_request() - set_request_url call failed\n",
+            __FILE__
+        );
+
+        curl_easy_cleanup(handle);
+
+        return NULL;
+    }
+
+    CURLcode err = curl_easy_setopt(
+        handle,
+        CURLOPT_USERAGENT,
+        HTTP_DEFAULT_USER_AGENT
+    );
+
+    if (err != CURLE_OK){
+        log_write(
+            logger,
+            LOG_ERROR,
+            "[%s] http_request() - failed to set CURLOPT_USERAGENT\n",
             __FILE__
         );
 
@@ -769,7 +767,7 @@ http_response *http_request(http_client *http, http_method method, const char *p
         return NULL;
     }
 
-    CURLcode err = curl_easy_perform(handle);
+    err = curl_easy_perform(handle);
 
     curl_slist_free_all(requestheaders);
 
@@ -802,19 +800,23 @@ http_response *http_request(http_client *http, http_method method, const char *p
         map_free(responseheaders);
     }
 
-    if (out.size > 0){
-        response->data = json_tokener_parse(out.data);
-
-        free(out.data);
+    if (out.data){
+        response->raw_data = out.data;
+        response->data = json_tokener_parse(response->raw_data);
 
         if (!response->data){
             log_write(
                 logger,
-                LOG_ERROR,
-                "[%s] http_request() - json_tokener_parse call failed\n",
-                __FILE__
+                LOG_WARNING,
+                "[%s] http_request() - json_tokener_parse call failed on `%s`\n",
+                __FILE__,
+                response->raw_data
             );
         }
+    }
+    else {
+        response->raw_data = NULL;
+        response->data = NULL;
     }
 
     handle_response_status(response);
@@ -836,6 +838,7 @@ void http_response_free(http_response *response){
 
     json_object_put(response->data);
     map_free(response->headers);
+    free(response->raw_data);
     free(response);
 }
 
